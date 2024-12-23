@@ -582,6 +582,30 @@ class CenterHead(BaseModule):
             anno_boxes.append(anno_box)
             masks.append(mask)
             inds.append(ind)
+            if False:
+                # vis heatmap
+                import matplotlib.pyplot as plt
+                import numpy as np
+                for task_idx, task_heatmap in enumerate(heatmaps):
+                    hmps = task_heatmap.clone().cpu().numpy()
+                    class_num = len(hmps)
+                    col = int(np.ceil(np.sqrt(class_num)))
+                    row = int(np.ceil(class_num / col))
+                    fig, axes = plt.subplots(row, col, figsize=(15, 15))
+                    fig.canvas.set_window_title('Heatmaps for All Classes')
+                    if not isinstance(axes, np.ndarray):
+                        axes = np.array([axes])
+                    axes = axes.flatten()
+                    for i, ax in enumerate(axes):
+                        if i < class_num:
+                            heatmap = hmps[i]
+                            ax.imshow(heatmap, cmap='gray', interpolation='nearest')
+                            ax.invert_yaxis()
+                            ax.set_title(f'{self.class_names[task_idx][i]} : {np.sum(heatmap == 1.0)}')
+                        else:
+                            fig.delaxes(ax)  # 如果子图数量多于热图数量，删除多余的子图
+                    plt.tight_layout()
+                    plt.show()
         return heatmaps, anno_boxes, inds, masks
 
     def loss(self, gt_bboxes_3d, gt_labels_3d, preds_dicts, **kwargs):

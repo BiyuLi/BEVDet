@@ -137,6 +137,30 @@ class BEVDet(CenterPoint):
         Returns:
             dict: Losses of different branches.
         """
+        if False:
+            from mmdet3d.core.visualizer import show_result
+            import os.path as osp
+            import numpy as np
+            from mmdet3d.core.bbox import (Box3DMode, Coord3DMode)
+            for gt_bboxes3d, image_meta in zip(gt_bboxes_3d, img_metas):
+                scan = np.fromfile(image_meta['pts_filename'], dtype=np.float32)
+                points = scan.reshape(-1,5)
+                gt_bboxes = gt_bboxes3d.tensor
+                filename = osp.splitext(osp.basename(image_meta['pts_filename']))[0]
+                if image_meta['box_mode_3d'] != Box3DMode.DEPTH:
+                    if points is not None:
+                        points = Coord3DMode.convert_point(points.copy(), Coord3DMode.LIDAR,
+                                                           Coord3DMode.DEPTH)
+                    if gt_bboxes is not None:
+                        gt_bboxes = Box3DMode.convert(gt_bboxes.clone(), Box3DMode.LIDAR,
+                                                   Box3DMode.DEPTH)
+                show_result(points,
+                            gt_bboxes,
+                            pred_bboxes=None,
+                            out_dir="work_dirs/vis_gt/",
+                            filename=filename,
+                            show=True,
+                            snapshot=False)
         img_feats, pts_feats, _ = self.extract_feat(
             points, img=img_inputs, img_metas=img_metas, **kwargs)
         losses = dict()
