@@ -582,33 +582,54 @@ class CenterHead(BaseModule):
             anno_boxes.append(anno_box)
             masks.append(mask)
             inds.append(ind)
-            if False:
-                # vis heatmap
-                import matplotlib.pyplot as plt
-                import numpy as np
-                for task_idx, task_heatmap in enumerate(heatmaps):
-                    hmps = task_heatmap.clone().cpu().numpy()
-                    class_num = len(hmps)
-                    col = int(np.ceil(np.sqrt(class_num)))
-                    row = int(np.ceil(class_num / col))
-                    fig, axes = plt.subplots(row, col, figsize=(15, 15))
-                    fig.canvas.set_window_title('Heatmaps for All Classes')
-                    if not isinstance(axes, np.ndarray):
-                        axes = np.array([axes])
-                    axes = axes.flatten()
-                    for i, ax in enumerate(axes):
-                        if i < class_num:
-                            heatmap = hmps[i]
-                            ax.imshow(heatmap, cmap='gray', interpolation='nearest')
-                            ax.invert_yaxis()
-                            ax.set_title(f'{self.class_names[task_idx][i]} : {np.sum(heatmap == 1.0)}')
-                        else:
-                            fig.delaxes(ax)  # 如果子图数量多于热图数量，删除多余的子图
-                    plt.tight_layout()
-                    plt.show()
         return heatmaps, anno_boxes, inds, masks
 
-    def loss(self, gt_bboxes_3d, gt_labels_3d, preds_dicts, **kwargs):
+    def vis_heatmaps(self, heatmaps_gt, preds_dicts, img_metas, save=False):
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import os
+        from datetime import datetime
+
+        def draw_heatmap(task_id, heatmaps, axes, title_prefix):
+            if not isinstance(axes, np.ndarray):
+                axes = np.array([axes])
+            axes = axes.flatten()
+            for i, ax in enumerate(axes):
+                if i < class_num:
+                    class_heatmap = heatmaps[i]
+                    ax.imshow(class_heatmap, cmap='gray', interpolation='nearest')
+                    ax.invert_yaxis()
+                    ax.set_title(f'{title_prefix} {self.class_names[task_id][i]} : {np.sum(class_heatmap == 1.0)}')
+                else:
+                    ax.axis('off')  # 如果子图数量多于热图数量，隐藏多余的子图; fig.delaxes(ax)
+
+        for task_idx, (task_heatmaps_gt, preds_dict) in enumerate(zip(heatmaps_gt, preds_dicts)):
+            for batch_id, (heatmaps_gt, heatmaps_pred, img_meta) in enumerate(
+                    zip(task_heatmaps_gt, clip_sigmoid(preds_dict['heatmap'].detach().clone()), img_metas)):
+                numpy_heatmap_gt = heatmaps_gt.clone().cpu().numpy()
+                numpy_heatmaps_pred = heatmaps_pred.cpu().numpy()
+                assert len(numpy_heatmap_gt) == len(numpy_heatmaps_pred) == self.num_classes[task_idx]
+                class_num = self.num_classes[task_idx]
+                col = int(np.ceil(np.sqrt(class_num)))
+                row = int(np.ceil(class_num / col))
+                fig, axes = plt.subplots(row, col * 2, figsize=(32, 16))
+                fig.canvas.set_window_title(f'Heatmaps for Task Head: {task_idx} Batch: {batch_id}')
+
+                draw_heatmap(task_idx, numpy_heatmap_gt, axes[:, :col], 'GT ')
+                draw_heatmap(task_idx, numpy_heatmaps_pred, axes[:, col:], 'Pred ')
+                if save:
+                    now = datetime.now()
+                    current_string = now.strftime("%H-%M-%S")
+                    save_folder = f"work_dirs/heatmaps/{img_meta['sample_idx']}"
+                    if not os.path.exists(save_folder):
+                        os.makedirs(save_folder)
+                    filename = os.path.join(save_folder, f"task_{task_idx}_batch_{batch_id}_{current_string}.png")
+                    plt.savefig(filename, bbox_inches='tight')
+                # plt.tight_layout()
+                # plt.show()
+                plt.close(fig)
+
+    def loss(self, gt_bboxes_3d, gt_labels_3d, preds_dicts, img_metas, **kwargs):
         """Loss function for CenterHead.
 
         Args:
@@ -622,6 +643,9 @@ class CenterHead(BaseModule):
         """
         heatmaps, anno_boxes, inds, masks = self.get_targets(
             gt_bboxes_3d, gt_labels_3d)
+        if False:
+            # for forward process, only one layer of feature from FPN was sent to Head
+            self.vis_heatmaps(heatmaps, preds_dicts[0], img_metas, save=False)
         loss_dict = dict()
         if not self.task_specific:
             loss_dict['loss'] = 0

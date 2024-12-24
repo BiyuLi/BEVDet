@@ -75,7 +75,7 @@ class CenterPoint(MVXTwoStageDetector):
             dict: Losses of each branch.
         """
         outs = self.pts_bbox_head(pts_feats)
-        loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs]
+        loss_inputs = [gt_bboxes_3d, gt_labels_3d, outs, img_metas]
         losses = self.pts_bbox_head.loss(*loss_inputs)
         return losses
 
