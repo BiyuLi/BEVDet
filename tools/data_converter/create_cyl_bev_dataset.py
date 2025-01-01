@@ -69,7 +69,7 @@ class CylBevDatasetConverter:
                         for key in cams2del:
                             sync_info['cameras'].pop(key)
                     self.collect_info(sync_info, package_root)
-                    self.save_camera_data(sync_info, package_root)
+
 
     def collect_info(self, sync_info, package_root):
         lidar_token = str(sync_info['lidars']['LIDAR_TOP'])
@@ -100,31 +100,27 @@ class CylBevDatasetConverter:
             'lidar2ego_rotation': lidar2ego_rotation,
             'ego2global_translation': [0, 0, 0],
             'ego2global_rotation': [1, 0, 0, 0],
-            'cams' : cams
+            'cams': cams
         }
-        # collect 2d annotations
-        annotations = [ann if ann['category'].lower() in class_names for ann in json_data['annotations']]
-        if annotations:
-            locs = np.array([[anno['center3d']['x'], anno['center3d']['y'],
-                              anno['center3d']['z']] for anno in
-                             annotations]).reshape(-1, 3)
-            dims = np.array([[anno['dim']['length'], anno['dim']['width'],
-                              anno['dim']['height']] for anno in
-                             annotations]).reshape(-1, 3)  # xyz : lwh
-            rots = np.array([anno['yaw'] for anno in annotations]).reshape(-1, 1)
-            velocity = np.array([[0.0, 0.0] for _ in annotations]).reshape(-1, 2)
-            gt_boxes = np.concatenate([locs, dims, rots], axis=1)
-            assert len(gt_boxes) == len(annotations), f'{len(gt_boxes)}, {len(annotations)}'
-            info['gt_boxes'] = gt_boxes
-            info['gt_names'] = np.array(
-                [anno['category'] for anno in annotations])
-            info['gt_velocity'] = velocity
-            info['num_lidar_pts'] = np.array(
-                [anno['num_lidar_pts'] for anno in annotations])
-            info['valid_flag'] = np.array(
-                [anno.get('visible_cls', "all_visible") == 'all_visible' for anno in annotations],
-                dtype=bool).reshape(
-                -1)
+        bev_annotations = [ann for ann in json_data['annotations'] if ann['category'].lower() in class_names]
+
+        # collect camera 2d annotations
+        for sensor in self.valid_cameras:
+            cam_token = str(sync_info['cameras'][sensor])
+            camera_json_path = os.path.join(package_root, 'anno', self.dataset_type, '2d',
+                                            cam_token + '.json')
+            if not os.path.exists(camera_json_path):
+                continue
+            pack_rel_path = os.path.relpath(package_root, self.root_path)
+            camera_img_path = None
+            if os.path.exists(os.path.join(package_root, 'cameras', sensor,
+                                           cam_token + '.png')):
+                camera_img_path = os.path.join(pack_rel_path, 'cameras', sensor,
+                                               cam_token + '.png')
+            elif os.path.exists(os.path.join(package_root, 'cameras', sensor,
+                                             cam_token + '.jpg')):
+                camera_img_path = os.path.join(pack_rel_path, 'cameras', sensor,
+                                               cam_token + '.jpg')
         self.bev_data['infos'].append(info)
 
     @staticmethod
@@ -187,11 +183,11 @@ class CylBevDatasetConverter:
             else:
                 timestamp = token
             image_path = None
-            if os.path.exists(os.path.join(package_root, self.camera_folder, sensor, token + '.png')):
-                image_path = os.path.join(os.path.relpath(package_root, self.root_path), self.camera_folder, sensor,
+            if os.path.exists(os.path.join(package_root, 'cameras', sensor, token + '.png')):
+                image_path = os.path.join(os.path.relpath(package_root, self.root_path), 'cameras', sensor,
                                           token + '.png')
-            elif os.path.exists(os.path.join(package_root, self.camera_folder, sensor, token + '.jpg')):
-                image_path = os.path.join(os.path.relpath(package_root, self.root_path), self.camera_folder, sensor,
+            elif os.path.exists(os.path.join(package_root, 'cameras', sensor, token + '.jpg')):
+                image_path = os.path.join(os.path.relpath(package_root, self.root_path), 'cameras', sensor,
                                           token + '.jpg')
             if image_path is None:
                 # sync info内的cam是全量的，送标的不一定全
@@ -218,28 +214,11 @@ class CylBevDatasetConverter:
 
 
 if __name__ == '__main__':
-    with open('/home/libiyu/Projects/BEVDet/data/nuscenes/bevdetv3-nuscenes_infos_train.pkl', 'rb') as f:
+    with open('/home/lby/Projects/DeepLearning/BEVDet/data/nuscenes/bevdetv3-nuscenes_infos_train.pkl', 'rb') as f:
         bevdet_data = pickle.load(f)
 
-    with open('/mnt/storage/parking_dataset/cyl_mono_infos_train_parking.pkl', 'rb') as f:
-        parking_pkl_data = pickle.load(f)
-
-    with open('/mnt/storage/parking_dataset/cyl_mono_infos_train_parking.coco.json', 'r') as f:
-        parking_json_data = json.load(f)
-
     print("completed")
-    # fill bev data based on pkl data
-
-    # 1. re-organize json data
-    annotations = {}
-    for anno in parking_json_data['annotations']:
-        token = anno['image_id']
-        if token in annotations:
-            annotations[token].append(anno)
-        else:
-            annotations[token] = [anno]
-
-    for info in parking_pkl_data['ingos']:
-        bevdet_data[i]['token'] = parking_pkl_data[i]['token']
-        bevdet_data[i]['lidar_path'] = parking_pkl_data[i]['lidar_path']
-        bevdet_data[i]['ego2global_translation'] = parking_pkl_data[i]['ego2global_translation']
+    convertor = CylBevDatasetConverter(root_path='/home/lby/Data/parking_dataset/',
+                                       version='parking',
+                                       out_dir='/home/lby/Data/parking_dataset/',)
+    convertor.prepare_data()
