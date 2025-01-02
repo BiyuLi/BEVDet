@@ -1,9 +1,5 @@
 import pickle
 import json
-import sys
-import os
-import glob
-from tqdm import tqdm
 import numpy as np
 from pyquaternion import Quaternion
 
@@ -165,57 +161,57 @@ def convert(lidar_pkl_data, camera_annotations):
         for cam_type, cam_info in lidar_info['cams'].items():
             cam_infos_new[camera_ranks[cam_type]] = cam_info
 
-            # fill 2d annotations
-            gt_2d_boxes = np.zeros((len(keeps_idx), len(cam_infos_new), 8))
-            # num_obj, num_cam, (outer_exists_this_cam, inner_exists_this_cam, outer_x, outer_y, outer_w, outer_h, inner_x1, inner_x2)
-            gt_wheel_kps = np.zeros((len(keeps_idx), len(cam_infos_new), 4))  # num_obj, num_cam, (x1, y1, x2, y2)
-            for row_idx, lidar_idx in enumerate(keeps_idx):
-                instance_annos = camera_instances[lidar_instance_ids[lidar_idx]]
-                for single_cam_anno in instance_annos:
-                    for cam_rank, sensor_type in enumerate(cam_infos_new):
-                        if sensor_type == single_cam_anno['sensor']:
-                            gt_2d_boxes[row_idx][cam_rank][0] = 1
-                            gt_2d_boxes[row_idx][cam_rank][2] = single_cam_anno['bbox'][0]
-                            gt_2d_boxes[row_idx][cam_rank][3] = single_cam_anno['bbox'][1]
-                            gt_2d_boxes[row_idx][cam_rank][4] = single_cam_anno['bbox'][2]
-                            gt_2d_boxes[row_idx][cam_rank][5] = single_cam_anno['bbox'][3]
-                            if single_cam_anno['category_name'] in vehicle_classes:
-                                inner_boxes = [box for box in single_cam_anno['stage_two_bbox2d'] if
-                                               box['category_name'] in ['head', 'rear']]
-                                kps = [point for point in single_cam_anno['stage_two_kps'] if
-                                       point['category_name'] == 'gnd_kps']
-                                assert len(kps) <= 2 and len(inner_boxes) <= 1
-                                if len(inner_boxes) == 1:
-                                    gt_2d_boxes[row_idx][cam_rank][1] = 1
-                                    gt_2d_boxes[row_idx][cam_rank][6] = inner_boxes[0]['bbox'][0]
-                                    gt_2d_boxes[row_idx][cam_rank][7] = inner_boxes[0]['bbox'][0] + \
-                                                                        inner_boxes[0]['bbox'][2]
-                                if len(kps) == 1:
-                                    gt_wheel_kps[row_idx][cam_rank][0] = kps[0]['bbox'][0]
-                                    gt_wheel_kps[row_idx][cam_rank][1] = kps[0]['bbox'][1]
-                                if len(kps) == 2:
-                                    gt_wheel_kps[row_idx][cam_rank][0] = kps[0]['bbox'][0]
-                                    gt_wheel_kps[row_idx][cam_rank][1] = kps[0]['bbox'][1]
-                                    gt_wheel_kps[row_idx][cam_rank][2] = kps[1]['bbox'][0]
-                                    gt_wheel_kps[row_idx][cam_rank][3] = kps[1]['bbox'][1]
-            anno_infos_2d = dict({
-                'cam_infos': cam_infos_new,
-                'gt_2d_boxes': gt_2d_boxes,
-                'gt_wheel_kps': gt_wheel_kps
-            })
-            lidar_info['anno_infos_2d'] = anno_infos_2d
+        # fill 2d annotations
+        gt_2d_boxes = np.zeros((len(keeps_idx), len(cam_infos_new), 8))
+        # num_obj, num_cam, (outer_exists_this_cam, inner_exists_this_cam, outer_x, outer_y, outer_w, outer_h, inner_x1, inner_x2)
+        gt_wheel_kps = np.zeros((len(keeps_idx), len(cam_infos_new), 4))  # num_obj, num_cam, (x1, y1, x2, y2)
+        for row_idx, lidar_idx in enumerate(keeps_idx):
+            instance_annos = camera_instances[lidar_instance_ids[lidar_idx]]
+            for single_cam_anno in instance_annos:
+                for cam_rank, cam_ in enumerate(cam_infos_new):
+                    if cam_['type'] == single_cam_anno['sensor']:
+                        gt_2d_boxes[row_idx][cam_rank][0] = 1
+                        gt_2d_boxes[row_idx][cam_rank][2] = single_cam_anno['bbox'][0]
+                        gt_2d_boxes[row_idx][cam_rank][3] = single_cam_anno['bbox'][1]
+                        gt_2d_boxes[row_idx][cam_rank][4] = single_cam_anno['bbox'][2]
+                        gt_2d_boxes[row_idx][cam_rank][5] = single_cam_anno['bbox'][3]
+                        if single_cam_anno['category_name'] in vehicle_classes:
+                            inner_boxes = [box for box in single_cam_anno['stage_two_bbox2d'] if
+                                           box['category_name'] in ['head', 'rear']]
+                            kps = [point for point in single_cam_anno['stage_two_kps'] if
+                                   point['category_name'] == 'gnd_kpt']
+                            assert len(kps) <= 2 and len(inner_boxes) <= 1
+                            if len(inner_boxes) == 1:
+                                gt_2d_boxes[row_idx][cam_rank][1] = 1
+                                gt_2d_boxes[row_idx][cam_rank][6] = inner_boxes[0]['bbox'][0]
+                                gt_2d_boxes[row_idx][cam_rank][7] = inner_boxes[0]['bbox'][0] + \
+                                                                    inner_boxes[0]['bbox'][2]
+                            if len(kps) == 1:
+                                gt_wheel_kps[row_idx][cam_rank][0] = kps[0]['bbox'][0]
+                                gt_wheel_kps[row_idx][cam_rank][1] = kps[0]['bbox'][1]
+                            if len(kps) == 2:
+                                gt_wheel_kps[row_idx][cam_rank][0] = kps[0]['bbox'][0]
+                                gt_wheel_kps[row_idx][cam_rank][1] = kps[0]['bbox'][1]
+                                gt_wheel_kps[row_idx][cam_rank][2] = kps[1]['bbox'][0]
+                                gt_wheel_kps[row_idx][cam_rank][3] = kps[1]['bbox'][1]
+        anno_infos_2d = dict({
+            'cam_infos': cam_infos_new,
+            'gt_2d_boxes': gt_2d_boxes,
+            'gt_wheel_kps': gt_wheel_kps
+        })
+        lidar_info['anno_infos_2d'] = anno_infos_2d
 
-    if __name__ == '__main__':
-        with open('./data/nuscenes/bevdetv3-nuscenes_infos_train.pkl', 'rb') as f:
-            bevdet_data = pickle.load(f)
+if __name__ == '__main__':
+    # with open('./data/nuscenes/bevdetv3-nuscenes_infos_train.pkl', 'rb') as f:
+    #     bevdet_data = pickle.load(f)
 
-        with open('/mnt/storage/parking_dataset/cyl_mono_infos_train_parking.pkl', 'rb') as f:
-            parking_pkl_data = pickle.load(f)
+    with open('/mnt/storage/parking_dataset/cyl_mono_infos_train_parking.pkl', 'rb') as f:
+        parking_pkl_data = pickle.load(f)
 
-        with open('/mnt/storage/parking_dataset/cyl_mono_infos_train_parking.coco.json', 'r') as f:
-            parking_json_data = json.load(f)
+    with open('/mnt/storage/parking_dataset/cyl_mono_infos_train_parking.coco.json', 'r') as f:
+        parking_json_data = json.load(f)
 
-        new_annos = filter_and_reorganize_camera_annos(parking_json_data)
-        convert(parking_pkl_data, new_annos)
-        with open('/mnt/storage/parking_dataset/bevdetv3-nuscenes_info_train.pkl', 'wb') as f:
-            pickle.dump(parking_pkl_data, f)
+    new_annos = filter_and_reorganize_camera_annos(parking_json_data)
+    convert(parking_pkl_data, new_annos)
+    with open('/mnt/storage/parking_dataset/bevdetv3-nuscenes_info_train.pkl', 'wb') as f:
+        pickle.dump(parking_pkl_data, f)
