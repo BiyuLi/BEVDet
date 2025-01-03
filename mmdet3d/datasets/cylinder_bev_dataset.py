@@ -204,6 +204,10 @@ class CylBevDataset(Custom3DDataset):
                 - ann_info (dict): Annotation info.
         """
         info = self.data_infos[index]
+        # join root path
+        for cam_info in info['cams'].values():
+            cam_info['data_path'] = osp.join(self.data_root,
+                                             cam_info['data_path'])
         # standard protocol modified from SECOND.Pytorch
         input_dict = dict(
             sample_idx=info['token'],

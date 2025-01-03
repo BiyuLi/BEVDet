@@ -45,30 +45,33 @@ data_config = {
     'cams': [
         'FISHEYE_CAMERA_BACK', 'FISHEYE_CAMERA_FRONT',
         'FISHEYE_CAMERA_LEFT', 'FISHEYE_CAMERA_RIGHT',
-        'FISHEYE_CAMERA_REAR'
+        # 'FISHEYE_CAMERA_REAR'
     ],
     'Ncams':
         4,
-    'input_size': (256, 704),
+    'input_size': (576, 704),
     'src_size': (576, 704),
 
     # Augmentation
-    'resize': (-0.06, 0.11),
-    'rot': (-5.4, 5.4),
-    'flip': True,
+    # 'resize': (-0.06, 0.11),
+    # 'rot': (-5.4, 5.4),
+    # 'flip': True,
+    'resize': (0, 0),
+    'rot': (0, 0),
+    'flip': False,
     'crop_h': (0.0, 0.0),
     'resize_test': 0.00,
 }
 
 # Model
 grid_config = {
-    'x': [-51.2, 51.2, 0.8],
-    'y': [-51.2, 51.2, 0.8],
-    'z': [-5, 3, 8],
-    'depth': [1.0, 60.0, 1.0],
+    'x': [-20, 20, 0.2],
+    'y': [-20, 20, 0.2],
+    'z': [-2.5, 0.5, 3],
+    'depth': [1.0, 20.0, 0.5],
 }
 
-voxel_size = [0.1, 0.1, 0.2]
+voxel_size = [0.1, 0.1, 0.1]
 
 numC_Trans = 64
 
@@ -124,8 +127,8 @@ model = dict(
         bbox_coder=dict(
             type='CenterPointBBoxCoder',
             pc_range=point_cloud_range[:2],
-            post_center_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
-            max_num=500,
+            post_center_range=[-20, -20, -2.5,20, 20, 0.5],
+            max_num=200,
             score_threshold=0.1,
             out_size_factor=8,
             voxel_size=voxel_size[:2],
@@ -144,14 +147,14 @@ model = dict(
             out_size_factor=8,
             dense_reg=1,
             gaussian_overlap=0.1,
-            max_objs=500,
+            max_objs=200,
             min_radius=2,
             code_weights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2])),
     test_cfg=dict(
         pts=dict(
             pc_range=point_cloud_range[:2],
-            post_center_limit_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0],
-            max_per_img=500,
+            post_center_limit_range=[-20, -20, -2.5,20, 20, 0.5],
+            max_per_img=200,
             max_pool_nms=False,
             min_radius=[4, 12, 10, 1, 0.85, 0.175],
             score_threshold=0.1,
@@ -175,17 +178,17 @@ data_root = 'data/bev_parking/'
 file_client_args = dict(backend='disk')
 
 bda_aug_conf = dict(
-    rot_lim=(-22.5, 22.5),
-    scale_lim=(0.95, 1.05),
-    flip_dx_ratio=0.5,
-    flip_dy_ratio=0.5)
+    rot_lim=(0, 0),
+    scale_lim=(1.0, 1.0),
+    flip_dx_ratio=0,
+    flip_dy_ratio=0)
 
 train_pipeline = [
     dict(
         type='PrepareImageInputs',
         is_train=True,
         data_config=data_config),
-    dict(type='LoadAnnotations'),
+    dict(type='LoadAnnotationsCylBEV'),
     dict(
         type='BEVAug',
         bda_aug_conf=bda_aug_conf,
@@ -212,7 +215,7 @@ test_pipeline = [
         file_client_args=file_client_args),
     dict(
         type='MultiScaleFlipAug3D',
-        img_scale=(1333, 800),
+        img_scale=(704, 576),
         pts_scale_ratio=1,
         flip=False,
         transforms=[

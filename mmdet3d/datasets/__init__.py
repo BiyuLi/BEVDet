@@ -21,7 +21,7 @@ from .pipelines import (AffineResize, BackgroundPointsFilter, GlobalAlignment,
                         PointShuffle, PointsRangeFilter, RandomDropPointsColor,
                         RandomFlip3D, RandomJitterPoints, RandomRotate,
                         RandomShiftScale, RangeLimitedRandomCrop,
-                        VoxelBasedPointSampler)
+                        VoxelBasedPointSampler, LoadAnnotationsCylBEV)
 # yapf: enable
 from .s3dis_dataset import S3DISDataset, S3DISSegDataset
 from .scannet_dataset import (ScanNetDataset, ScanNetInstanceSegDataset,
@@ -46,5 +46,5 @@ __all__ = [
     'RandomJitterPoints', 'ObjectNameFilter', 'AffineResize',
     'RandomShiftScale', 'LoadPointsFromDict', 'PIPELINES',
     'RangeLimitedRandomCrop', 'RandomRotate', 'MultiViewWrapper',
-    'NuScenesDatasetOccpancy', 'CylBevDataset'
+    'NuScenesDatasetOccpancy', 'CylBevDataset', 'LoadAnnotationsCylBEV'
 ]

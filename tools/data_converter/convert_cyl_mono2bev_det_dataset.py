@@ -76,7 +76,7 @@ valid_cameras = ['FISHEYE_CAMERA_BACK', 'FISHEYE_CAMERA_FRONT',
 camera_ranks = {'FISHEYE_CAMERA_FRONT': 0,
                 'FISHEYE_CAMERA_RIGHT': 1,
                 'FISHEYE_CAMERA_BACK': 2,
-                'FISHEYE_CAMERA_REAR': 2,
+                # 'FISHEYE_CAMERA_REAR': 2,
                 'FISHEYE_CAMERA_LEFT': 3}
 
 
@@ -156,6 +156,9 @@ def convert(lidar_pkl_data, camera_annotations):
         cams2del = set(lidar_info['cams'].keys()) - set(valid_cameras)
         for invalid_cam in cams2del:
             lidar_info['cams'].pop(invalid_cam)
+        # replace 'FISHEYE_CAMERA_REAR' with 'FISHEYE_CAMERA_BACK'
+        if 'FISHEYE_CAMERA_REAR' in lidar_info['cams']:
+            lidar_info['cams']['FISHEYE_CAMERA_BACK'] = lidar_info['cams'].pop('FISHEYE_CAMERA_REAR')
         # update cams
         for cam_type, cam_info in lidar_info['cams'].items():
             lidar2cam_rotation = cam_info.pop('lidar2cam_rotation', None) or cam_info.pop('vcs2cam_rotation', None)
@@ -196,17 +199,15 @@ def convert(lidar_pkl_data, camera_annotations):
         # get valid instance ids
         keeps_idx = [idx for idx, identity in enumerate(lidar_instance_ids) if identity in camera_instances.keys()]
 
-        # fill 3d annotations
-        gt_names = lidar_info['gt_names'][keeps_idx]
-        lidar_info.update({
-            'gt_boxes': lidar_info['gt_boxes'][keeps_idx],
-            'gt_names': gt_names,
-            'gt_labels': [class_names[label_name] for label_name in gt_names],
-            'gt_ids': lidar_info['gt_ids'][keeps_idx],
-            'num_lidar_pts': lidar_info['num_lidar_pts'][keeps_idx],
-            'valid_flag': lidar_info['valid_flag'][keeps_idx],
-            'gt_velocity': lidar_info['gt_velocity'][keeps_idx]
-        })
+        # lidar_info.update({
+        #     'gt_boxes': lidar_info['gt_boxes'][keeps_idx],
+        #     'gt_names': gt_names,
+        #     'gt_labels': [class_names[label_name] for label_name in gt_names],
+        #     'gt_ids': lidar_info['gt_ids'][keeps_idx],
+        #     'num_lidar_pts': lidar_info['num_lidar_pts'][keeps_idx],
+        #     'valid_flag': lidar_info['valid_flag'][keeps_idx],
+        #     'gt_velocity': lidar_info['gt_velocity'][keeps_idx]
+        # })
 
         # record image info for inference
         cam_infos_new = [dict() for _ in range(len(lidar_info['cams']))]
@@ -249,12 +250,33 @@ def convert(lidar_pkl_data, camera_annotations):
                                 gt_wheel_kps[row_idx][cam_rank][1] = kps[0]['bbox'][1]
                                 gt_wheel_kps[row_idx][cam_rank][2] = kps[1]['bbox'][0]
                                 gt_wheel_kps[row_idx][cam_rank][3] = kps[1]['bbox'][1]
-        anno_infos_2d = dict({
+        # fill 3d annotations
+        gt_names = lidar_info['gt_names'][keeps_idx]
+        gt_3d_boxes =  lidar_info['gt_boxes'][keeps_idx]
+        gt_labels = [class_names[label_name] for label_name in gt_names]
+        gt_ids = lidar_info['gt_ids'][keeps_idx]
+        num_lidar_pts = lidar_info['num_lidar_pts'][keeps_idx]
+        valid_flag = lidar_info['valid_flag'][keeps_idx]
+        gt_velocity = lidar_info['gt_velocity'][keeps_idx]
+        lidar_info.update({
+            'gt_boxes': gt_3d_boxes,
+            'gt_names': gt_names,
+            'gt_labels': gt_labels,
+            'gt_ids': gt_ids,
+            'num_lidar_pts': num_lidar_pts,
+            'valid_flag': valid_flag,
+            'gt_velocity': gt_velocity
+        })
+        anno_infos = dict({
             'cam_infos': cam_infos_new,
+            'gt_names': gt_names,
+            'gt_labels': gt_labels,
+            'gt_ids': gt_ids,
+            'gt_3d_boxes': gt_3d_boxes,
             'gt_2d_boxes': gt_2d_boxes,
             'gt_wheel_kps': gt_wheel_kps
         })
-        lidar_info['ann_infos'] = anno_infos_2d
+        lidar_info['ann_infos'] = anno_infos
 
 
 parser = argparse.ArgumentParser(description='Convert cyl mono parking dataset to bevdet format')

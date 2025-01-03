@@ -1172,6 +1172,20 @@ class LoadAnnotations(object):
         results['gt_labels_3d'] = gt_labels
         return results
 
+@PIPELINES.register_module()
+class LoadAnnotationsCylBEV(object):
+
+    def __call__(self, results):
+        gt_boxes, gt_labels = results['ann_infos']
+        gt_boxes, gt_labels = torch.Tensor(gt_boxes), torch.tensor(gt_labels)
+        if len(gt_boxes) == 0:
+            gt_boxes = torch.zeros(0, 9)
+        results['gt_bboxes_3d'] = \
+            LiDARInstance3DBoxes(gt_boxes, box_dim=gt_boxes.shape[-1],
+                                 origin=(0.5, 0.5, 0.5))
+        results['gt_labels_3d'] = gt_labels
+        return results
+
 
 @PIPELINES.register_module()
 class BEVAug(object):
